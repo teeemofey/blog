@@ -5,22 +5,30 @@ import fm from 'front-matter';
 import { resolve } from 'node:path';
 
 import { Html } from './components';
-import { Glob } from 'bun';
-import { raw } from 'hono/html';
+import { Glob, escapeHTML } from 'bun';
+import { html, raw } from 'hono/html';
 import sanitize from 'sanitize-html';
+import { jsxRenderer } from 'hono/jsx-renderer';
+import { escapeHtml } from 'markdown-it/lib/common/utils.mjs';
 
 const md = markdownit({
   highlight: function(str, lang) {
     if (lang && hljs.getLanguage(lang)) {
       try {
-        return hljs.highlight(str, { language: lang }).value;
+        const highlighted = hljs.highlight(str, {
+          language: lang,
+          ignoreIllegals: true,
+        }).value;
+        // Return highlighted code wrapped in a special token
+        return `<pre class="hljs"><code>${highlighted}</code></pre>`;
       } catch (e) {
         console.log(e);
       }
     }
-
     return ''; // use external default escaping
   },
+  html: true, // Enable HTML tags in source
+  breaks: true, // Convert '\n' in paragraphs into <br>
 });
 
 type PostFrontMatter = {
@@ -73,12 +81,12 @@ function PostsList({ posts }: { posts: PostFrontMatter[] }) {
   );
 }
 
+app.get('/*', Html);
+
 app.get('/', (c) => {
-  return c.html(
-    <Html>
-      <PostsList posts={Object.values(posts)} />
-    </Html>,
-  );
+  jsxRenderer();
+
+  return c.render(<PostsList posts={Object.values(posts)} />);
 });
 
 app.get('/post/:slug', (c) => {
@@ -89,7 +97,7 @@ app.get('/post/:slug', (c) => {
 
   const sanitized = sanitize(post.html);
 
-  return c.html(<Html>{raw(sanitized)}</Html>);
+  return c.render(raw(sanitized));
 });
 
 export default app;
