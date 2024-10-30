@@ -6,7 +6,7 @@ export default jsxRenderer(
 		return (
 			<html lang="en">
 				<head>
-					<title>My website</title>
+					<title>teeemofey</title>
 					<link rel="stylesheet" href="/css" />
 					<link
 						rel="stylesheet"
@@ -16,7 +16,7 @@ export default jsxRenderer(
 					<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/javascript.min.js"></script>
 				</head>
 
-				<body>
+				<body class="prose">
 					{children}
 					{html`<script>hljs.highlightAll();</script>`}
 				</body>
