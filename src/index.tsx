@@ -5,64 +5,63 @@ import fm from 'front-matter';
 import { resolve } from 'node:path';
 
 import { Html } from './components';
-import { Glob, escapeHTML } from 'bun';
-import { html, raw } from 'hono/html';
+import { Glob, serve, $ } from 'bun';
+import { raw } from 'hono/html';
 import sanitize from 'sanitize-html';
 import { jsxRenderer } from 'hono/jsx-renderer';
-import { escapeHtml } from 'markdown-it/lib/common/utils.mjs';
 
 const md = markdownit({
-  highlight: function(str, lang) {
-    if (lang && hljs.getLanguage(lang)) {
-      try {
-        const highlighted = hljs.highlight(str, {
-          language: lang,
-          ignoreIllegals: true,
-        }).value;
-        // Return highlighted code wrapped in a special token
-        return `<pre class="hljs"><code>${highlighted}</code></pre>`;
-      } catch (e) {
-        console.log(e);
-      }
-    }
-    return ''; // use external default escaping
-  },
-  html: true, // Enable HTML tags in source
-  breaks: true, // Convert '\n' in paragraphs into <br>
+	highlight: function (str, lang) {
+		if (lang && hljs.getLanguage(lang)) {
+			try {
+				const highlighted = hljs.highlight(str, {
+					language: lang,
+					ignoreIllegals: true,
+				}).value;
+				// Return highlighted code wrapped in a special token
+				return `<pre class="hljs"><code>${highlighted}</code></pre>`;
+			} catch (e) {
+				console.log(e);
+			}
+		}
+		return ''; // use external default escaping
+	},
+	html: true, // Enable HTML tags in source
+	breaks: true, // Convert '\n' in paragraphs into <br>
 });
 
 type PostFrontMatter = {
-  title: string;
-  author: string;
-  date: string;
-  lastmod: string;
-  slug: string;
+	title: string;
+	author: string;
+	date: string;
+	lastmod: string;
+	slug: string;
 };
 
 type Post = { body: string; html: string } & PostFrontMatter;
 type Posts = Record<string, Post>;
 
 async function getPosts(): Promise<Posts> {
-  const glob = new Glob('*.md');
-  const postsPath = resolve('posts');
+	const glob = new Glob('*.md');
+	const postsPath = resolve('posts');
 
-  const posts: Posts = {};
+	const posts: Posts = {};
 
-  for await (const filePath of glob.scan(postsPath)) {
-    const path = resolve(postsPath, filePath);
+	for await (const filePath of glob.scan(postsPath)) {
+		const path = resolve(postsPath, filePath);
 
-    const file = Bun.file(path);
-    const text = await file.text();
+		const file = Bun.file(path);
+		const text = await file.text();
 
-    const { attributes, body } = fm<PostFrontMatter>(text);
-    posts[attributes.slug] = {
-      ...attributes,
-      body: body,
-      html: md.render(body),
-    };
-  }
+		const { attributes, body } = fm<PostFrontMatter>(text);
+		posts[attributes.slug] = {
+			...attributes,
+			body: body,
+			html: md.render(body),
+		};
+	}
 
-  return posts;
+	return posts;
 }
 
 const posts = await getPosts();
@@ -70,34 +69,41 @@ const posts = await getPosts();
 const app = new Hono();
 
 function PostsList({ posts }: { posts: PostFrontMatter[] }) {
-  return (
-    <div>
-      {posts.map((post) => (
-        <div>
-          <a href={`/post/${post.slug}`}>{post.title}</a>
-        </div>
-      ))}
-    </div>
-  );
+	return (
+		<div>
+			{posts.map((post) => (
+				<div>
+					<a href={`/post/${post.slug}`}>{post.title}</a>
+				</div>
+			))}
+		</div>
+	);
 }
 
 app.get('/*', Html);
 
 app.get('/', (c) => {
-  jsxRenderer();
+	jsxRenderer();
 
-  return c.render(<PostsList posts={Object.values(posts)} />);
+	return c.render(<PostsList posts={Object.values(posts)} />);
 });
 
 app.get('/post/:slug', (c) => {
-  const slug = c.req.param('slug') || '';
-  const post = posts[slug];
+	const slug = c.req.param('slug') || '';
+	const post = posts[slug];
 
-  if (!post) return c.html('Not found');
+	if (!post) return c.html('Not found');
 
-  const sanitized = sanitize(post.html);
+	const sanitized = sanitize(post.html);
 
-  return c.render(raw(sanitized));
+	return c.render(raw(sanitized));
 });
 
-export default app;
+app.get('/css', async (c) => {
+	const css = await $`bunx tailwindcss -i ./src/index.css`.quiet();
+
+	c.header('Content-Type', 'text/css');
+	return c.body(css.text());
+});
+
+serve({ fetch: app.fetch, port: 6969 });
