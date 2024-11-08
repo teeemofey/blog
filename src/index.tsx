@@ -9,10 +9,10 @@ import { Glob, serve, $ } from 'bun';
 import { raw } from 'hono/html';
 import sanitize from 'sanitize-html';
 import { jsxRenderer } from 'hono/jsx-renderer';
+import { consola } from 'consola';
 
 const md = markdownit({
 	highlight: function (str, lang) {
-		console.log(lang, 'hello', new Date().toISOString());
 		if (lang && hljs.getLanguage(lang)) {
 			try {
 				const highlighted = hljs.highlight(str, {
@@ -107,4 +107,8 @@ app.get('/css', async (c) => {
 	return c.body(css.text());
 });
 
-serve({ fetch: app.fetch, port: 6969 });
+const PORT = 3000;
+const HOSTNAME = '0.0.0.0';
+
+serve({ fetch: app.fetch, port: PORT, hostname: HOSTNAME });
+consola.info(`started web server on port ${PORT} and host ${HOSTNAME}`);

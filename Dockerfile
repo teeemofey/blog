@@ -9,7 +9,7 @@ COPY . .
 RUN bun install
 
 # Expose the port
-EXPOSE 6969
+EXPOSE 3000 
 
 # Run the app
 CMD ["bun", "start"]
