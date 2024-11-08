@@ -1,35 +1,13 @@
 import { Hono } from 'hono';
-import markdownit from 'markdown-it';
-import hljs from 'highlight.js';
 import fm from 'front-matter';
 import { resolve } from 'node:path';
 
 import { Html } from './components';
 import { Glob, serve, $ } from 'bun';
-import { raw } from 'hono/html';
-import sanitize from 'sanitize-html';
-import { jsxRenderer } from 'hono/jsx-renderer';
 import { consola } from 'consola';
 
-const md = markdownit({
-	highlight: function (str, lang) {
-		if (lang && hljs.getLanguage(lang)) {
-			try {
-				const highlighted = hljs.highlight(str, {
-					language: lang,
-					ignoreIllegals: true,
-				}).value;
-				// Return highlighted code wrapped in a special token
-				return `<pre class="hljs"><code>${highlighted}</code></pre>`;
-			} catch (e) {
-				console.log(e);
-			}
-		}
-		return ''; // use external default escaping
-	},
-	html: true, // Enable HTML tags in source
-	breaks: true, // Convert '\n' in paragraphs into <br>
-});
+import Shiki from '@shikijs/markdown-it';
+import MarkdownIt from 'markdown-it';
 
 type PostFrontMatter = {
 	title: string;
@@ -47,6 +25,17 @@ async function getPosts(): Promise<Posts> {
 	const postsPath = resolve('posts');
 
 	const posts: Posts = {};
+
+	const md = MarkdownIt();
+
+	md.use(
+		await Shiki({
+			themes: {
+				light: 'vitesse-light',
+				dark: 'vitesse-dark',
+			},
+		}),
+	);
 
 	for await (const filePath of glob.scan(postsPath)) {
 		const path = resolve(postsPath, filePath);
@@ -81,11 +70,9 @@ function PostsList({ posts }: { posts: PostFrontMatter[] }) {
 	);
 }
 
-app.get('/*', Html);
+app.use('*', Html);
 
 app.get('/', (c) => {
-	jsxRenderer();
-
 	return c.render(<PostsList posts={Object.values(posts)} />);
 });
 
@@ -95,9 +82,7 @@ app.get('/post/:slug', (c) => {
 
 	if (!post) return c.html('Not found');
 
-	const sanitized = sanitize(post.html);
-
-	return c.render(raw(sanitized));
+	return c.render(<div dangerouslySetInnerHTML={{ __html: post.html }} />);
 });
 
 app.get('/css', async (c) => {

@@ -7,6 +7,7 @@
 		"format:write": "biome format --write ."
 	},
 	"dependencies": {
+		"@shikijs/markdown-it": "^1.22.2",
 		"@types/markdown-it": "^14.1.2",
 		"@types/sanitize-html": "^2.13.0",
 		"front-matter": "^4.0.2",
