@@ -12,6 +12,7 @@ import { jsxRenderer } from 'hono/jsx-renderer';
 
 const md = markdownit({
 	highlight: function (str, lang) {
+		console.log(lang, 'hello', new Date().toISOString());
 		if (lang && hljs.getLanguage(lang)) {
 			try {
 				const highlighted = hljs.highlight(str, {
